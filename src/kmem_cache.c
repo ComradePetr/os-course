@@ -2,6 +2,7 @@
 #include "memory.h"
 #include "stdio.h"
 #include "list.h"
+#include "threads.h"
 
 
 struct kmem_slab_ops {
@@ -487,7 +488,10 @@ void *kmem_alloc(size_t size)
 	if (i == -1)
 		return 0;
 
-	return kmem_cache_alloc(kmem_pool[i]);
+	lock();
+	void* r = kmem_cache_alloc(kmem_pool[i]);
+	unlock();
+	return r;
 }
 
 void kmem_free(void *ptr)
@@ -495,12 +499,14 @@ void kmem_free(void *ptr)
 	if (!ptr)
 		return;
 
+	lock();
 	struct kmem_slab *slab = kmem_get_slab(ptr);
 
 	if (!slab)
 		return;
 
 	kmem_cache_free(slab->cache, ptr);
+	unlock();
 }
 
 void setup_alloc(void)
