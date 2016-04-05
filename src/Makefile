@@ -6,11 +6,13 @@ CFLAGS := -g -m64 -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -ffreestanding \
 	-Wframe-larger-than=4096 -Wstack-usage=4096 -Wno-unknown-warning-option
 LFLAGS := -nostdlib -z max-page-size=0x1000
 
-ASM := bootstrap.S videomem.S
+ASM := bootstrap.S videomem.S entry.S threads_asm.S
 AOBJ:= $(ASM:.S=.o)
 ADEP:= $(ASM:.S=.d)
 
-SRC := main.c
+SRC := backtrace.c time.c interrupt.c i8259a.c stdio.c vsinkprintf.c stdlib.c \
+	serial.c console.c string.c ctype.c list.c main.c misc.c balloc.c \
+	memory.c paging.c error.c kmem_cache.c threads.c
 OBJ := $(AOBJ) $(SRC:.c=.o)
 DEP := $(ADEP) $(SRC:.c=.d)
 

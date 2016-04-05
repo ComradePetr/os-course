@@ -2,42 +2,47 @@
 #define __INTERRUPT_H__
 
 #include <stdint.h>
-#include "memory.h"
 
 struct idt_ptr {
 	uint16_t size;
 	uint64_t base;
 } __attribute__((packed));
 
+struct irqchip {
+	void (*map)(unsigned);
+	void (*mask)(unsigned);
+	void (*unmask)(unsigned);
+	void (*eoi)(unsigned);
+};
+
 static inline void set_idt(const struct idt_ptr *ptr)
 { __asm__ volatile ("lidt (%0)" : : "a"(ptr)); }
 
+static inline void local_irq_disable(void)
+{ __asm__ volatile ("cli" : : : "cc"); }
 
-#define IDT_SIZE 256
-static struct idt_ptr pos;
-struct idt_node{
-    uint16_t offset_low, segment_selector;
-    uint8_t ist, flags;
-    uint16_t offset_mid;
-    uint32_t offset_high, reserved;
-} __attribute__((packed)) idt[IDT_SIZE];
+static inline void local_irq_enable(void)
+{ __asm__ volatile ("sti" : : : "cc"); }
 
-void add_interrupt_gate(int id, void f()){
-	struct idt_node x;
-	uint64_t ptr=(uint64_t)f;
-	x.segment_selector=KERNEL_CODE;
-	x.offset_low=ptr&0xffff;
-	x.offset_mid=(ptr>>16)&0xffff;
-	x.offset_high=(ptr>>32);
-	x.ist=0;
-	x.reserved=0;
-	x.flags=0x8E;
-	idt[id]=x;
-}
+static inline void irqchip_map(struct irqchip *chip, unsigned offset)
+{ if (chip->map) chip->map(offset); }
 
-static inline void setup_idt(){
-	pos.size=IDT_SIZE*sizeof(struct idt_node)-1, pos.base=(uint64_t)idt;
-	set_idt(&pos);
-}
+static inline void irqchip_mask(struct irqchip *chip, unsigned irq)
+{ if (chip->mask) chip->mask(irq); }
+
+static inline void irqchip_unmask(struct irqchip *chip, unsigned irq)
+{ if (chip->unmask) chip->unmask(irq); }
+
+static inline void irqchip_eoi(struct irqchip *chip, unsigned irq)
+{ if (chip->eoi) chip->eoi(irq); }
+
+
+typedef void (*irq_t)(int irq);
+void register_irq_handler(int irq, irq_t isr);
+void unregister_irq_handler(int irq, irq_t isr);
+
+void setup_ints(void);
+void mask_irq(int irq);
+void unmask_irq(int irq);
 
 #endif /*__INTERRUPT_H__*/

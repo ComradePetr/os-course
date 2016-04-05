@@ -3,9 +3,6 @@
 
 #include <stdint.h>
 
-#define testbit(flags, bit) ((flags) & (1 << (bit)))
-#define BIT(bit) (1<<(bit))
-
 static inline void out8(unsigned short port, uint8_t data)
 { __asm__ volatile("outb %0, %1" : : "a"(data), "d"(port)); }
 
