@@ -493,7 +493,7 @@ void *kmem_alloc(size_t size)
 	unlock();
 	return r;
 }
-
+ 
 void kmem_free(void *ptr)
 {
 	if (!ptr)
