@@ -34,8 +34,9 @@ void initfs(char* start, char* end){
 		int mode = read_num(header->mode), sz = read_num(header->filesize), nsz = read_num(header->namesize);
 
 		start += sizeof(struct cpio_header);
-		char* name = start;
-		DBG_ASSERT(!name[nsz]);
+		char* name = kmem_alloc(nsz + 1);
+		memcpy(name, start, nsz);
+		name[nsz] = 0;
 		DBG_INFO("Read from archive %s", name);
 		if(!strcmp(name, END_OF_ARCHIVE))
 			break;
@@ -54,5 +55,7 @@ void initfs(char* start, char* end){
 			int res = mkdir(name);
 			DBG_ASSERT(res == 0);
 		}
+		
+		kmem_free(name);
 	}
 }
