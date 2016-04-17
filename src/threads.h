@@ -1,39 +1,75 @@
-#ifndef THREADS_H
-#define THREADS_H
+#ifndef __THREADS_H__
+#define __THREADS_H__
 
-#define STACK_SIZE 8192
+#include <stdbool.h>
+#include <stddef.h>
 
-#include <sys/types.h>
-#include <stdint.h>
-#include "list.h"
+#include "locking.h"
+#include "kernel.h"
+#include "rbtree.h"
 
-void lock();
-void unlock();
 
-void init_threads();
-
-typedef enum {NOT_STARTED, RUNNING, FINISHED, JOINABLE} thread_state;
-struct thread {
-	struct vlist_head link;
-
-    char *rspl, *rsp;
-    pid_t thread_id;
-    uint64_t exit_code;
-    thread_state state;
+enum thread_state {
+	THREAD_NONE,
+	THREAD_ACTIVE,
+	THREAD_BLOCKED,
+	THREAD_FINISHED,
+	THREAD_DEAD,
+	THREAD_REAPED
 };
 
-typedef volatile struct thread thread_t;
+typedef intptr_t pid_t;
+
+struct thread {
+	struct rb_node node;
+	pid_t pid;
+	void *stack_pointer;
+	unsigned long long time;
+	enum thread_state state;
+	struct page *stack;
+	struct mm *mm;
+	struct spinlock lock;
+	int refcount;
+};
+
+struct scheduler {
+	struct thread *(*alloc)(void);
+	void (*free)(struct thread *);
+	void (*activate)(struct thread *);
+	bool (*need_preempt)(struct thread *);
+	struct thread *(*next)(void);
+	void (*preempt)(struct thread *);
+	void (*place)(struct thread *);
+};
 
 
-thread_t* thread_create(void (*fptr)(void *), void *arg);
-void thread_start(thread_t *thread);
-void yield();
-void thread_exit(uint64_t code);
-void setup_threads();
-void thread_join(thread_t* thread, void **retval);
-pid_t get_current_thread();
-void scheduler(int irq);
+static inline pid_t thread_pid(const struct thread *thread)
+{ return thread->pid; }
 
-void switch_threads(void **old_sp, void *new_sp);
+pid_t create_kthread(int (*fptr)(void *), void *arg);
 
-#endif /* THREADS_H */
+struct thread_regs;
+
+struct thread_regs *thread_regs(struct thread *thread);
+struct thread *lookup_thread(pid_t pid);
+struct thread *current(void);
+void *thread_stack_begin(struct thread *thread);
+void *thread_stack_end(struct thread *thread);
+void put_thread(struct thread *thread);
+void get_thread(struct thread *thread);
+void schedule(void);
+bool need_resched(void);
+
+
+static inline pid_t getpid(void)
+{ return thread_pid(current()); }
+
+void activate_thread(struct thread *thread);
+int wait(pid_t pid);
+void exit(void);
+
+
+void idle(void);
+void setup_threading(void);
+
+#endif /*__THREADS_H__*/

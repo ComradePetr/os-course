@@ -18,6 +18,8 @@
 #define ALL_BITS		(~((uintmax_t)0))
 #define BITS_CONST(hi, lo)	((BIT_CONST((hi) + 1) - 1) & (ALL_BITS << (lo)))
 #define BITS(hi, lo)		BITS_CONST(hi, lo)
+#define ARRAY_SIZE(arr)		(sizeof(arr)/sizeof((arr)[0]))
+#define CHECK_FLAG(a, f)	(((a)>>(f))&1)
 
 
 static inline intmax_t MIN(intmax_t l, intmax_t r)

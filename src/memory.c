@@ -52,6 +52,7 @@ static void __memory_node_add(enum node_type type, unsigned long begin,
 	const pfn_t pfn = begin >> PAGE_BITS;
 
 	list_init(&node->link);
+	spinlock_init(&node->lock);
 	node->begin_pfn = pfn;
 	node->end_pfn = pfn + pages;
 	node->id = memory_nodes++;
@@ -144,7 +145,7 @@ void memory_free_region(unsigned long long addr, unsigned long long size)
 	}
 }
 
-void setup_memory(void)
+void setup_memory(char* initramfs_begin, char* initramfs_end)
 {
 	for (int i = 0; i != memory_map_size; ++i) {
 		const struct mmap_entry *entry = memory_map + i;
@@ -161,6 +162,7 @@ void setup_memory(void)
 	const phys_t kernel_end = (phys_t)bss_phys_end;
 
 	balloc_add_region(kernel_begin, kernel_end - kernel_begin);
+	balloc_add_region((phys_t)initramfs_begin, initramfs_end - initramfs_begin);
 
 	for (int i = 0; i != memory_map_size; ++i) {
 		const struct mmap_entry *entry = memory_map + i;
@@ -173,6 +175,10 @@ void setup_memory(void)
 			(unsigned long long) kernel_begin,
 			(unsigned long long) kernel_end - 1);
 	balloc_reserve_region(kernel_begin, kernel_end - kernel_begin);
+	printf("reserve memory range: %#llx-%#llx for initramfs\n",
+			(unsigned long long) initramfs_begin,
+			(unsigned long long) initramfs_end - 1);
+	balloc_reserve_region((phys_t)initramfs_begin, initramfs_end - initramfs_begin);
 }
 
 void setup_buddy(void)
@@ -264,8 +270,9 @@ static struct page *__alloc_pages_node(int order, struct memory_node *node)
 
 struct page *alloc_pages_node(int order, struct memory_node *node)
 {
+	const bool enabled = spin_lock_irqsave(&node->lock);
 	struct page * pages = __alloc_pages_node(order, node);
-
+	spin_unlock_irqrestore(&node->lock, enabled);
 	return pages;
 }
 
@@ -332,7 +339,10 @@ void free_pages_node(struct page *pages, int order, struct memory_node *node)
 	if (!pages)
 		return;
 
+	const bool enabled = spin_lock_irqsave(&node->lock);
+
 	__free_pages_node(pages, order, node);
+	spin_unlock_irqrestore(&node->lock, enabled);
 }
 
 struct page *__alloc_pages(int order, int type)

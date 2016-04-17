@@ -46,6 +46,7 @@
 
 #include <stdint.h>
 
+#include "locking.h"
 #include "balloc.h"
 #include "list.h"
 
@@ -111,6 +112,7 @@ enum node_type {
 struct memory_node {
 	struct list_head link;
 	struct page *mmap;
+	struct spinlock lock;
 	pfn_t begin_pfn;
 	pfn_t end_pfn;
 	int id;
@@ -140,7 +142,7 @@ static inline phys_t page_paddr(struct page *page)
 static inline void *page_addr(struct page *page)
 { return va(page_paddr(page)); }
 
-void setup_memory(void);
+void setup_memory(char* initramfs_begin, char* initramfs_end);
 void setup_buddy(void);
 
 #endif /*__ASM_FILE__*/

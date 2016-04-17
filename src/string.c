@@ -1,4 +1,5 @@
 #include "string.h"
+#include "kmem_cache.h"
 
 void *memcpy(void *dst, const void *src, size_t size)
 {
@@ -89,4 +90,8 @@ char *strcpy(char *dst, const char *src)
 		*dst++ = *src++;
 	*dst = 0;
 	return ret;
+}
+
+char *strdup(const char *src){
+	return strcpy(kmem_alloc(strlen(src) + 1), src);
 }

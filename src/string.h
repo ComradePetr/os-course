@@ -12,5 +12,6 @@ char *strchr(const char *str, int c);
 int strcmp(const char *l, const char *r);
 char *strncpy(char *dst, const char *src, size_t size);
 char *strcpy(char *dst, const char *src);
+char *strdup(const char *src);
 
 #endif /*__STRING_H__*/
