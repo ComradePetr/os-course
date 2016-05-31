@@ -11,6 +11,7 @@
 #include "initramfs.h"
 #include "string.h"
 #include "filesystem.h"
+#include "elf.h"
 /*
 static bool range_intersect(phys_t l0, phys_t r0, phys_t l1, phys_t r1)
 {
@@ -119,6 +120,7 @@ static void test_threading(void)
 	DBG_INFO("Threading test finished");
 }*/
 
+/*
 void print_dir(char *path,fsnode *dir){
 	DBG_ASSERT(dir->type==FOLDER);
 
@@ -142,22 +144,24 @@ void print_dir(char *path,fsnode *dir){
 		}else
 			printf("Directory '%s'\n\n", node->name);
 	}
-}
+}*/
 
 static int start_kernel(void *dummy)
 {
 	(void) dummy;
 
-#ifdef TEST_FS
-	fsnode *s=readdir("go");
-	DBG_ASSERT(s!=NULL);
-	print_dir("go",s);
-#endif
-	
-	puts("End!");
 	/*buddy_smoke_test();
 	slab_smoke_test();
 	test_threading();*/
+	
+	int file=open("root/main");
+	DBG_ASSERT(file);
+	size_t sz = size(file);
+	char* buf = kmem_alloc(sz);
+	read(file, buf, sz);
+	close(file);
+	execute(buf);
+	kmem_free(buf);
 
 	return 0;
 }
@@ -194,7 +198,7 @@ void main(void)
 	char *arch_start = f(mod->mod_start), *arch_end = f(mod->mod_end);
 #undef f
 	DBG_ASSERT(!memcmp(arch_start, CPIO_HEADER_MAGIC, 6));
-	
+
 	setup_memory(arch_start, arch_end);
 	setup_buddy();
 	setup_paging();

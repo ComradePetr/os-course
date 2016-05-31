@@ -281,3 +281,15 @@ fsnode* readdir(char *path){
 	spin_unlock_irqrestore(&fs_lock, enabled);
 	return r;
 }
+
+size_t size(int fd){
+	const bool enabled = spin_lock_irqsave(&fs_lock);
+	descriptor *d=get_desc_by_fd(fd);
+	if(!d){
+		spin_unlock_irqrestore(&fs_lock, enabled);
+		return 0;
+	}
+	size_t res = d->file->size;
+	spin_unlock_irqrestore(&fs_lock, enabled);
+	return res;
+}

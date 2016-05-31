@@ -8,6 +8,8 @@
 #include "stdio.h"
 #include "error.h"
 
+#include "system_call.h"
+
 #include <stdint.h>
 
 #define IDT_PRESENT    ((uint64_t)1 << 47)
@@ -16,8 +18,7 @@
 #define IDT_USER       ((uint64_t)3 << 45)
 #define IDT_IRQS       16
 #define IDT_EXCEPTIONS 32
-#define IDT_SIZE       (IDT_IRQS + IDT_EXCEPTIONS)
-
+#define IDT_SIZE       (IDT_IRQS + IDT_EXCEPTIONS + 1)
 
 struct idt_entry {
 	uint64_t low;
@@ -152,10 +153,33 @@ static inline void unmask_irq(int irq)
 static inline void ack_irq(int irq)
 { irqchip_eoi(irqchip, irq); }
 
+void system_call_handler(struct thread_regs *ctx){
+	if(ctx->rax==0 || ctx->rax==1){
+		if(!ctx->rbx)
+			puts("ERROR: Incorrect structure address");
+		else if(ctx->rax==0){
+			args0* args=(args0*)ctx->rbx;
+			if(!args->to_print)
+				puts("ERROR: Incorrect string address");
+			else
+				puts(args->to_print);
+		}else{
+			args1* args=(args1*)ctx->rbx;
+			printf("%d\n",args->to_print);
+		}
+	}else
+		puts("ERROR: Unknown system call");
+}
+
 void isr_common_handler(struct thread_regs *ctx)
 {
 	const int intno = ctx->intno;
 
+	if(intno == SYSCALL_INTNO){
+		system_call_handler(ctx);
+		return;
+	}
+	
 	if (intno < IDT_EXCEPTIONS) {
 		default_exception_handler(ctx);
 		return;
@@ -198,6 +222,7 @@ void unregister_irq_handler(int irq, irq_t isr)
 	}
 }
 
+void __system_call_handler();
 void setup_ints(void)
 {
 	for (int i = 0; i != IDT_IRQS; ++i)
@@ -205,6 +230,7 @@ void setup_ints(void)
 
 	for (int i = 0; i != IDT_EXCEPTIONS; ++i)
 		setup_irq(isr_entry[i], i);
+	setup_idt_entry(SYSCALL_INTNO, KERNEL_CODE, (unsigned long)__system_call_handler, IDT_64TRAP | IDT_USER);
 
 	idt_ptr.size = sizeof(idt) - 1;
 	idt_ptr.base = (uintptr_t)idt;
